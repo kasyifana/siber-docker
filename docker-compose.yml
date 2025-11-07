@@ -1,0 +1,63 @@
+# docker-compose.yml
+version: '3.8'
+
+services:
+  mcp-security-server:
+    build: .
+    container_name: mcp-security-server
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+    environment:
+      - MCP_SERVER_HOST=0.0.0.0
+      - MCP_SERVER_PORT=8080
+      - LOG_LEVEL=INFO
+      - MAX_CONCURRENT_SCANS=5
+      - SCAN_TIMEOUT=300
+    restart: unless-stopped
+    networks:
+      - security-net
+    cap_add:
+      - NET_ADMIN  # For raw socket operations (nmap)
+      - NET_RAW
+    security_opt:
+      - no-new-privileges:true
+    read_only: false
+    tmpfs:
+      - /tmp
+
+  # Redis for caching and rate limiting
+  redis:
+    image: redis:7-alpine
+    container_name: mcp-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    networks:
+      - security-net
+
+  # PostgreSQL for storing scan results
+  postgres:
+    image: postgres:15-alpine
+    container_name: mcp-postgres
+    environment:
+      POSTGRES_DB: mcp_security
+      POSTGRES_USER: mcpuser
+      POSTGRES_PASSWORD: changeme
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      - security-net
+
+networks:
+  security-net:
+    driver: bridge
+
+volumes:
+  redis-data:
+  postgres-data:

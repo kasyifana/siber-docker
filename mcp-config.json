@@ -1,0 +1,25 @@
+{
+  "mcpServers": {
+    "security-audit": {
+      "command": "docker",
+      "args": [
+        "exec",
+        "-i",
+        "mcp-security-server",
+        "python",
+        "-m",
+        "src.server"
+      ],
+      "description": "Security audit server for blackbox testing",
+      "features": [
+        "port-scanning",
+        "sql-injection-testing",
+        "xss-testing",
+        "ssl-analysis",
+        "header-analysis",
+        "subdomain-enumeration",
+        "web-vulnerability-scanning"
+      ]
+    }
+  }
+}
