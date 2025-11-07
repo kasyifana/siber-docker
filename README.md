@@ -1,363 +1,187 @@
 # MCP Security Audit Server
 
-Server MCP (Model Context Protocol) untuk security audit blackbox testing. Server ini menyediakan berbagai tools untuk melakukan audit keamanan terhadap aplikasi web dan infrastruktur.
+Docker-based MCP server untuk blackbox security testing. Semua tools berjalan di dalam container.
 
-## 🚀 Fitur
+## 🛠️ Tools
 
-### Security Scanning Tools
-- **Port Scanner (Nmap)** - Scan port dan deteksi service
-- **SQL Injection Testing (SQLMap)** - Test vulnerability SQL injection
-- **Web Vulnerability Scanning (Nikto)** - Comprehensive web vulnerability scan
-- **XSS Testing** - Test Cross-Site Scripting vulnerabilities
-- **Subdomain Enumeration** - Discover subdomains
-- **SSL/TLS Analysis** - Analyze SSL certificate dan configuration
-- **Security Headers Check** - Analyze HTTP security headers
-- **OWASP ZAP Integration** - Advanced web application security testing
+1. **Nmap** - Port scanning & service detection
+2. **SQLMap** - SQL injection testing
+3. **Nikto** - Web vulnerability scanning
+4. **XSS Tester** - Cross-site scripting testing
+5. **Subdomain Enum** - Subdomain discovery
+6. **SSL Checker** - SSL/TLS analysis
+7. **Header Analyzer** - Security headers check
+8. **Tech Detector** - CMS & framework detection
 
-### Fitur Tambahan
-- Comprehensive reporting
-- Multiple scan types (quick, standard, thorough)
-- Full security audit mode
-- Target validation untuk keamanan
-- Rate limiting dan timeout protection
+## 🚀 Quick Start
 
-## 📋 Prerequisites
-
-- Docker & Docker Compose
-- Minimal 2GB RAM
-- Koneksi internet untuk download tools
-
-## 🛠️ Installation
-
-### 1. Clone Repository
 ```bash
-cd /Users/user/Campuss/Semester\ 5/SIBER/siber-docker
-```
-
-### 2. Build Docker Image
-```bash
-docker-compose build
-```
-
-### 3. Start Services
-```bash
+# Start containers
 docker-compose up -d
+
+# Test
+docker exec -i mcp-security-server python -m src.stdio_server << 'EOF'
+{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2024-11-05","capabilities":{},"clientInfo":{"name":"test","version":"1.0"}}}
+EOF
 ```
 
-## 🔧 Configuration
+## 📝 Cara Pakai
 
-Edit `.env` file atau `docker-compose.yml` untuk konfigurasi:
+### Via Docker MCP Gateway (Recommended)
 
-```env
-MCP_SERVER_HOST=0.0.0.0
-MCP_SERVER_PORT=8080
-LOG_LEVEL=INFO
-MAX_CONCURRENT_SCANS=5
-SCAN_TIMEOUT=300
-```
+Server sudah terdaftar di **Docker MCP Toolkit** dengan nama `security-audit`.
 
-## 📖 Usage
+Claude Desktop (dan LLM clients lain) bisa langsung akses via Docker MCP Gateway. Tidak perlu config tambahan - tinggal enable di Docker Desktop UI.
 
-### Cara Menggunakan dengan LLM
+### Verify Setup
 
-1. **Setup MCP Client di LLM Anda**
-   - Tambahkan server ini ke konfigurasi MCP client
-   - Gunakan stdio transport untuk komunikasi
-
-2. **Contoh Penggunaan**
-
-```
-User: "Tolong scan port pada target.example.com"
-
-LLM akan memanggil tool: port_scan
-- target: target.example.com
-- ports: 1-1000
-- scan_type: quick
-
-User: "Lakukan full security audit pada https://example.com"
-
-LLM akan memanggil tool: full_security_audit
-- target: https://example.com
-- scope: standard
-```
-
-### Available MCP Tools
-
-#### 1. `port_scan`
-Scan port pada target
-```json
-{
-  "target": "example.com",
-  "ports": "1-1000",
-  "scan_type": "quick|full|stealth|version"
-}
-```
-
-#### 2. `sql_injection_test`
-Test SQL injection vulnerability
-```json
-{
-  "url": "https://example.com/page?id=1",
-  "parameters": "id,name",
-  "database": "auto|mysql|postgres|mssql"
-}
-```
-
-#### 3. `web_vuln_scan`
-Scan web vulnerabilities dengan Nikto
-```json
-{
-  "url": "https://example.com",
-  "scan_depth": "quick|standard|thorough"
-}
-```
-
-#### 4. `xss_test`
-Test XSS vulnerabilities
-```json
-{
-  "url": "https://example.com/search",
-  "parameters": ["q", "search"],
-  "payload_type": "reflected|stored|dom|all"
-}
-```
-
-#### 5. `enumerate_subdomains`
-Enumerate subdomains
-```json
-{
-  "domain": "example.com",
-  "method": "dns|certificate|brute|all"
-}
-```
-
-#### 6. `analyze_ssl`
-Analyze SSL/TLS configuration
-```json
-{
-  "hostname": "example.com",
-  "port": 443
-}
-```
-
-#### 7. `check_security_headers`
-Check security headers
-```json
-{
-  "url": "https://example.com"
-}
-```
-
-#### 8. `full_security_audit`
-Comprehensive security audit
-```json
-{
-  "target": "https://example.com",
-  "scope": "quick|standard|thorough"
-}
-```
-
-## 📊 Output Examples
-
-### Port Scan Output
-```markdown
-# Port Scan Results
-
-**Target:** example.com
-**Scan Time:** 2.5s
-
-## Open Ports
-
-- **Port 80/tcp**
-  - Service: http
-  - Version: Apache 2.4.41
-  
-- **Port 443/tcp**
-  - Service: https
-  - Version: Apache 2.4.41
-```
-
-### Security Headers Output
-```markdown
-# Security Headers Analysis
-
-**URL:** https://example.com
-**Score:** 60/100
-
-## Headers Status
-
-✓ **Strict-Transport-Security**
-   Value: `max-age=31536000`
-   Status: Strong
-
-❌ **Content-Security-Policy**
-   Status: Missing
-   Impact: XSS attacks, data injection
-```
-
-## 🏗️ Architecture
-
-```
-siber-docker/
-├── docker-compose.yml          # Docker orchestration
-├── Dockerfile                  # Container definition
-├── requirements.txt            # Python dependencies
-├── src/
-│   ├── __init__.py
-│   ├── __main__.py            # Entry point
-│   ├── server.py              # MCP server implementation
-│   ├── config/
-│   │   ├── __init__.py
-│   │   └── settings.py        # Configuration
-│   ├── tools/                 # Security tools
-│   │   ├── __init__.py
-│   │   ├── nmap_scanner.py
-│   │   ├── sqlmap_tool.py
-│   │   ├── nikto_scanner.py
-│   │   ├── zap_tool.py
-│   │   ├── xss_tester.py
-│   │   ├── subdomain_enum.py
-│   │   ├── ssl_checker.py
-│   │   └── header_analyzer.py
-│   └── utils/                 # Utilities
-│       ├── __init__.py
-│       ├── logger.py
-│       ├── validator.py
-│       └── reporter.py
-├── data/                      # Data directory
-│   ├── payloads/             # Attack payloads
-│   ├── wordlists/            # Wordlists for fuzzing
-│   └── reports/              # Generated reports
-└── tests/
-    └── test_tools.py
-```
-
-## 🔒 Security Considerations
-
-### Target Validation
-Server ini memiliki built-in validator untuk mencegah scanning pada:
-- Private IP ranges (10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16)
-- Localhost (127.0.0.0/8)
-- Link-local addresses
-- Multicast addresses
-
-### Rate Limiting
-- Maximum 5 concurrent scans (configurable)
-- Timeout 300 seconds per scan (configurable)
-- Rate limiting via Redis
-
-### Logging
-Semua aktivitas dicatat untuk audit trail:
-- Target yang discan
-- Tools yang digunakan
-- Hasil scan
-- Error yang terjadi
-
-## 📝 Development
-
-### Running Tests
 ```bash
-docker-compose exec mcp-security-server pytest tests/
+# Check server enabled
+docker mcp server list
+# Output: security-audit
+
+# Check container running  
+docker-compose ps
+# Output: mcp-security-server Up
+
+# Test manual
+docker exec -i mcp-security-server python -m src.stdio_server << 'EOF'
+{"jsonrpc":"2.0","id":1,"method":"tools/list","params":{}}
+EOF
 ```
 
-### View Logs
+## 🔧 Management
+
 ```bash
-docker-compose logs -f mcp-security-server
+# Start containers
+docker-compose up -d
+
+# Stop
+docker-compose down
+
+# Logs
+docker-compose logs -f
+
+# Rebuild
+docker-compose up -d --build
+
+# Docker MCP commands
+docker mcp server list
+docker mcp server enable security-audit
+docker mcp server disable security-audit
+docker mcp catalog show local-security
 ```
 
-### Access Shell
+## 🐛 Troubleshooting
+
+**Server tidak muncul di Claude:**
 ```bash
-docker-compose exec mcp-security-server /bin/bash
+# Verify enabled
+docker mcp server list
+
+# Re-add if needed
+docker mcp catalog add local-security security-audit ./mcp-server.yaml
+docker mcp server enable security-audit
+  security-audit:
+    metadata:
+      displayName: Security Audit Server
+      description: Blackbox security testing tools
+    transports:
+      - type: stdio
+        command: docker
+        args:
+          - exec
+          - "-i"
+          - mcp-security-server
+          - python
+          - "-m"
+          - src.stdio_server
 ```
 
-## 🤝 Integration dengan Claude/LLMs
+2. Register & enable:
 
-### Konfigurasi MCP di Claude Desktop
+```bash
+docker mcp catalog create local
+docker mcp catalog add local security-audit ./mcp-server.yaml
+docker mcp server enable security-audit
+```
 
-Edit `~/Library/Application Support/Claude/claude_desktop_config.json`:
+3. Use in any MCP client:
 
 ```json
 {
   "mcpServers": {
-    "security-audit": {
+    "docker-gateway": {
       "command": "docker",
-      "args": [
-        "exec",
-        "-i",
-        "mcp-security-server",
-        "python",
-        "-m",
-        "src.server"
-      ]
+      "args": ["mcp", "gateway", "run"]
     }
   }
 }
 ```
 
-### Contoh Interaksi dengan Claude
+## 📁 Structure
 
-**User:** "Saya ingin melakukan security audit pada website https://testsite.com"
+```
+siber-docker/
+├── src/
+│   ├── stdio_server.py       # MCP stdio server
+│   ├── tools/                # Security tools
+│   └── utils/                # Utilities
+├── docker-compose.yml        # Container orchestration
+├── Dockerfile               # Container build
+└── README.md               # This file
+```
 
-**Claude:** Saya akan melakukan comprehensive security audit. Ini akan mencakup:
-1. Port scanning
-2. SSL/TLS analysis
-3. Security headers check
-4. Subdomain enumeration
-5. Web vulnerability scan
+## 🔧 Development
 
-*[Claude memanggil tool full_security_audit]*
-
-**Claude:** Hasil audit menunjukkan beberapa temuan:
-
-**Critical Issues:**
-- SQL Injection vulnerability pada parameter 'id'
-
-**High Issues:**
-- Missing Content-Security-Policy header
-- Outdated SSL/TLS protocols enabled
-
-**Recommendations:**
-1. Patch SQL injection vulnerability immediately
-2. Implement Content-Security-Policy header
-3. Disable TLS 1.0 and 1.1
-
-## 🐛 Troubleshooting
-
-### Container tidak bisa start
 ```bash
+# Rebuild
+docker-compose down && docker-compose up -d --build
+
+# View logs
+docker-compose logs -f mcp-security-server
+
+# Stop
 docker-compose down
-docker-compose up --build
 ```
 
-### Permission errors
-```bash
-sudo chown -R $(whoami):$(whoami) data/
+## 📝 Example Tool Calls
+
+```json
+// Scan ports
+{
+  "tool": "scan_ports",
+  "arguments": {
+    "target": "example.com",
+    "ports": "1-1000"
+  }
+}
+
+// Check SQL injection
+{
+  "tool": "test_sql_injection",
+  "arguments": {
+    "url": "https://example.com/page?id=1",
+    "level": 1
+  }
+}
+
+// Check security headers
+{
+  "tool": "check_security_headers",
+  "arguments": {
+    "url": "https://example.com"
+  }
+}
 ```
 
-### ZAP tidak bisa scan
-Pastikan port 8090 tidak digunakan aplikasi lain
+## 🔒 Security
+
+- Container runs as non-root user
+- No-new-privileges security option
+- Network isolation
+- Tools isolated in container
 
 ## 📄 License
 
-MIT License
-
-## ⚠️ Disclaimer
-
-Tool ini hanya untuk educational purposes dan authorized security testing. 
-Penggunaan untuk unauthorized testing adalah ilegal dan melanggar hukum.
-
-**PENTING:** 
-- Selalu dapatkan izin tertulis sebelum melakukan security testing
-- Jangan gunakan untuk target yang tidak Anda miliki/tidak authorized
-- Patuhi hukum dan regulasi yang berlaku
-
-## 🙋 Support
-
-Untuk pertanyaan dan issue:
-1. Check documentation
-2. Review logs: `docker-compose logs mcp-security-server`
-3. Restart services: `docker-compose restart`
-
----
-
-**Happy Secure Testing! 🔐**
+MIT

@@ -10,7 +10,12 @@
         "-m",
         "src.server"
       ],
-      "description": "Security audit server for blackbox testing",
+      "description": "Security audit server running in Docker container",
+      "note": "This connects to the Docker container named 'mcp-security-server'",
+      "prerequisites": [
+        "Docker must be running",
+        "Run 'docker-compose up -d' first to start the container"
+      ],
       "features": [
         "port-scanning",
         "sql-injection-testing",

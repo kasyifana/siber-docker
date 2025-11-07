@@ -1,0 +1,22 @@
+name: security-audit
+image: siber-docker-mcp-security-server
+type: server
+meta:
+  category: security
+  tags:
+    - security
+    - blackbox
+    - scanning
+about:
+  title: Security Audit Server
+  description: Blackbox security testing with 8 tools - Nmap, Nikto, SQLMap, XSS, SSL, Subdomain, Headers, Tech Detection
+  icon: https://www.docker.com/wp-content/uploads/2022/03/vertical-logo-monochromatic.png
+source:
+  project: https://github.com/kasyifana/siber-docker
+config:
+  description: Security audit server running in Docker
+runtime:
+  command: python
+  args:
+    - "-m"
+    - "src.stdio_server"

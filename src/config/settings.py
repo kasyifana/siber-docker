@@ -36,7 +36,7 @@ class Settings(BaseSettings):
     
     # Tool Paths
     NMAP_PATH: str = "/usr/bin/nmap"
-    NIKTO_PATH: str = "/usr/bin/nikto"
+    NIKTO_PATH: str = "/usr/local/bin/nikto"
     SQLMAP_PATH: str = "/usr/bin/sqlmap"
     ZAP_PATH: str = "/opt/ZAP_2.14.0/zap.sh"
     

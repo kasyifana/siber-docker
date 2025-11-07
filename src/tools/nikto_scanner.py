@@ -8,7 +8,7 @@ import re
 
 class NiktoScanner:
     def __init__(self):
-        self.nikto_path = '/usr/bin/nikto'
+        self.nikto_path = '/usr/local/bin/nikto'
         logger.info("Nikto scanner initialized")
     
     async def scan(
