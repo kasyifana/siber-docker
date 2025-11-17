@@ -14,6 +14,7 @@ services:
       - LOG_LEVEL=INFO
       - DATABASE_URL=postgresql://mcpuser:changeme@postgres:5432/mcp_security
       - REDIS_URL=redis://redis:6379/0
+      - HTTP_API=true  # Set to 'false' for stdio-only mode
     restart: unless-stopped
     depends_on:
       - postgres
