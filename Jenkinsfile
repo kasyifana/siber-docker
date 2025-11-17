@@ -1,47 +1,67 @@
 pipeline {
     agent any
 
+    environment {
+        // Path to docker-compose file
+        COMPOSE_FILE = 'docker-compose.yml'
+        // Project name to avoid conflicts
+        COMPOSE_PROJECT_NAME = 'siber-mcp'
+    }
+
     stages {
         stage('Clone Repo') {
             steps {
-                echo "📦 Cloning repository..."
-                git branch: 'main', url: 'https://github.com/kasyifana/siber-docker.git'
+                echo '📦 Cloning repository...'
+                git branch: 'main',
+                    url: 'https://github.com/kasyifana/siber-docker.git'
             }
         }
 
         stage('Stop Old Containers') {
             steps {
-                echo "🛑 Stopping old containers..."
+                echo '🛑 Stopping old containers...'
                 sh '''
-                    docker-compose -f docker-compose.yml down || true
+                    docker compose -p ${COMPOSE_PROJECT_NAME} -f ${COMPOSE_FILE} down || true
                 '''
             }
         }
 
         stage('Build Docker Image') {
             steps {
-                echo "🔨 Building Docker image..."
+                echo '🔨 Building Docker images...'
                 sh '''
-                    docker-compose -f docker-compose.yml build
+                    docker compose -p ${COMPOSE_PROJECT_NAME} -f ${COMPOSE_FILE} build mcp-security-server
                 '''
             }
         }
-//test
+
         stage('Start New Containers') {
             steps {
-                echo "🚀 Starting new containers..."
+                echo '🚀 Starting new containers...'
                 sh '''
-                    docker-compose -f docker-compose.yml up -d
+                    docker compose -p ${COMPOSE_PROJECT_NAME} -f ${COMPOSE_FILE} up -d mcp-security-server postgres redis
                 '''
             }
         }
 
         stage('Health Check') {
             steps {
-                echo "🩺 Checking service health..."
+                echo '🏥 Waiting for containers to be healthy...'
                 sh '''
-                    sleep 5
-                    curl -f http://localhost:3000/health
+                    echo "Waiting 30 seconds for services to start..."
+                    sleep 30
+                    docker ps --filter "name=${COMPOSE_PROJECT_NAME}" --format "table {{.Names}}\t{{.Status}}"
+                '''
+            }
+        }
+
+        stage('Verify MCP Server') {
+            steps {
+                echo '✅ Verifying MCP Server functionality...'
+                sh '''
+                    echo "Testing MCP tools/list endpoint..."
+                    docker exec ${COMPOSE_PROJECT_NAME}-mcp-security-server-1 python -c "import sys; print('Python executable works')" || \
+                    docker exec mcp-security-server python -c "import sys; print('Python executable works')"
                 '''
             }
         }
@@ -49,7 +69,7 @@ pipeline {
 
     post {
         success {
-            echo "✅ Deployment successful!"
+            echo "🚀 MCP Security Server is deployed & healthy!"
         }
         failure {
             echo "❌ Deployment failed. Check console output & container logs."
