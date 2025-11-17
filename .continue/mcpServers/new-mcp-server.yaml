@@ -1,0 +1,13 @@
+  "mcpServers": {
+    "security-audit": {
+      "command": "docker",
+      "args": [
+        "exec",
+        "-i",
+        "mcp-security-server",
+        "python",
+        "-m",
+        "src.stdio_server"
+      ]
+    }
+  }

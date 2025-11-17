@@ -12,6 +12,7 @@ Docker-based MCP server untuk blackbox security testing. Semua tools berjalan di
 6. **SSL Checker** - SSL/TLS analysis
 7. **Header Analyzer** - Security headers check
 8. **Tech Detector** - CMS & framework detection
+9. **🚀 Multi-Scan Orchestrator** - Run multiple scans simultaneously with consolidated results
 
 ## 🚀 Quick Start
 

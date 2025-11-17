@@ -27,6 +27,7 @@ venv/
 ENV/
 env/
 .venv
+.env
 
 # IDE
 .vscode/
@@ -40,7 +41,7 @@ env/
 logs/
 
 # Reports
-reports/*.md
+
 reports/*.html
 reports/*.pdf
 
@@ -68,3 +69,4 @@ htmlcov/
 *.tmp
 temp/
 tmp/
+reports/*.md

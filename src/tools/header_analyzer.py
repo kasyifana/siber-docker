@@ -33,6 +33,41 @@ class HeaderAnalyzer:
             }
         }
         logger.info("Header analyzer initialized")
+
+    async def detect_technologies(self, url: str) -> Dict:
+        """
+        Detect web technologies via headers
+        
+        Args:
+            url: Target URL
+        
+        Returns:
+            Detected technologies
+        """
+        try:
+            async with aiohttp.ClientSession() as session:
+                async with session.get(url, timeout=10, ssl=False) as response:
+                    headers = response.headers
+                    
+                    technologies = {}
+                    
+                    if 'Server' in headers:
+                        technologies['server'] = headers['Server']
+                    
+                    if 'X-Powered-By' in headers:
+                        technologies['x-powered-by'] = headers['X-Powered-By']
+                        
+                    logger.info(f"Technologies found for {url}: {technologies}")
+                    return {
+                        'url': url,
+                        'technologies': technologies
+                    }
+        except Exception as e:
+            logger.error(f"Technology detection error for {url}: {str(e)}")
+            return {
+                'url': url,
+                'error': str(e)
+            }
     
     async def analyze(self, url: str) -> Dict:
         """
@@ -46,7 +81,7 @@ class HeaderAnalyzer:
         """
         try:
             async with aiohttp.ClientSession() as session:
-                async with session.get(url, timeout=10) as response:
+                async with session.get(url, timeout=10, ssl=False) as response:
                     headers = response.headers
                     
                     results = {

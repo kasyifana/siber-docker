@@ -78,11 +78,7 @@ async def list_tools() -> List[Tool]:
                         "type": "string",
                         "description": "Target URL to test for SQL injection"
                     },
-                    "level": {
-                        "type": "integer",
-                        "description": "Test level (1-5, higher = more thorough)",
-                        "default": 1
-                    }
+
                 },
                 "required": ["url"]
             }
@@ -184,6 +180,34 @@ async def list_tools() -> List[Tool]:
                 },
                 "required": ["url"]
             }
+        ),
+        Tool(
+            name="multi_scan",
+            description="Run multiple security scans simultaneously (Nmap, SQLMap, Nikto, XSS, SSL, Headers, Tech Detection). Results are automatically consolidated into a comprehensive security report.",
+            inputSchema={
+                "type": "object",
+                "properties": {
+                    "target": {
+                        "type": "string",
+                        "description": "Target URL or hostname (e.g., example.com or https://example.com)"
+                    },
+                    "scans": {
+                        "type": "array",
+                        "items": {
+                            "type": "string",
+                            "enum": ["ports", "sql", "web_vuln", "xss", "ssl", "headers", "tech"]
+                        },
+                        "description": "List of scans to run: ports (Nmap), sql (SQLMap), web_vuln (Nikto), xss (XSS Test), ssl (SSL Check), headers (Security Headers), tech (Technology Detection). Default: all scans",
+                        "default": ["ports", "web_vuln", "ssl", "headers", "tech"]
+                    },
+                    "ports": {
+                        "type": "string",
+                        "description": "Port range for Nmap scan (e.g., '80,443,8080' or '1-1000')",
+                        "default": "80,443,8080,3000,8000"
+                    }
+                },
+                "required": ["target"]
+            }
         )
     ]
 
@@ -198,7 +222,7 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             ports = arguments.get("ports", "1-1000")
             
             # Validate target
-            if not validator.is_valid_target(target):
+            if not validator.validate_target(target):
                 result = f"❌ Invalid target: {target}"
             else:
                 logger.info(f"Scanning ports on {target}")
@@ -207,19 +231,18 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
         
         elif name == "test_sql_injection":
             url = arguments["url"]
-            level = arguments.get("level", 1)
             
-            if not validator.is_valid_url(url):
+            if not validator.validate_url(url):
                 result = f"❌ Invalid URL: {url}"
             else:
                 logger.info(f"Testing SQL injection on {url}")
-                test_result = await sqlmap.test(url, level)
+                test_result = await sqlmap.test(url)
                 result = f"# 💉 SQL Injection Test Results\n\n{test_result}"
         
         elif name == "scan_web_vulnerabilities":
             url = arguments["url"]
             
-            if not validator.is_valid_url(url):
+            if not validator.validate_url(url):
                 result = f"❌ Invalid URL: {url}"
             else:
                 logger.info(f"Scanning web vulnerabilities on {url}")
@@ -229,19 +252,18 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
         elif name == "test_xss":
             url = arguments["url"]
             payloads = arguments.get("payloads")
-            
-            if not validator.is_valid_url(url):
+            if not validator.validate_url(url):
                 result = f"❌ Invalid URL: {url}"
             else:
                 logger.info(f"Testing XSS on {url}")
-                test_result = await xss.test(url, payloads)
+                test_result = await xss.test(url, payloads if payloads is not None else [])
                 result = f"# 🎯 XSS Test Results\n\n{test_result}"
         
         elif name == "enumerate_subdomains":
             domain = arguments["domain"]
             wordlist = arguments.get("wordlist")
             
-            if not validator.is_valid_domain(domain):
+            if not validator.validate_domain(domain):
                 result = f"❌ Invalid domain: {domain}"
             else:
                 logger.info(f"Enumerating subdomains for {domain}")
@@ -253,13 +275,12 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
             port = arguments.get("port", 443)
             
             logger.info(f"Checking SSL for {host}:{port}")
-            ssl_result = await ssl.check(host, port)
+            ssl_result = await ssl.analyze(host, port)
             result = f"# 🔒 SSL/TLS Check Results\n\n{ssl_result}"
-        
         elif name == "check_security_headers":
             url = arguments["url"]
             
-            if not validator.is_valid_url(url):
+            if not validator.validate_url(url):
                 result = f"❌ Invalid URL: {url}"
             else:
                 logger.info(f"Checking security headers for {url}")
@@ -269,12 +290,84 @@ async def call_tool(name: str, arguments: Any) -> List[TextContent]:
         elif name == "detect_technologies":
             url = arguments["url"]
             
-            if not validator.is_valid_url(url):
+            if not validator.validate_url(url):
                 result = f"❌ Invalid URL: {url}"
             else:
                 logger.info(f"Detecting technologies for {url}")
                 tech_result = await headers.detect_technologies(url)
                 result = f"# 🔧 Technology Detection Results\n\n{tech_result}"
+        
+        elif name == "multi_scan":
+            target = arguments["target"]
+            scans = arguments.get("scans", ["ports", "web_vuln", "ssl", "headers", "tech"])
+            ports_range = arguments.get("ports", "80,443,8080,3000,8000")
+            
+            # Normalize target to URL and hostname
+            if not target.startswith("http"):
+                url = f"https://{target}"
+                hostname = target
+            else:
+                url = target
+                hostname = target.replace("https://", "").replace("http://", "").split("/")[0]
+            
+            logger.info(f"🚀 Starting multi-scan on {target} with scans: {', '.join(scans)}")
+            
+            # Run all scans concurrently
+            scan_tasks = []
+            scan_names = []
+            
+            if "ports" in scans:
+                scan_tasks.append(nmap.scan(hostname, ports_range))
+                scan_names.append("Port Scan (Nmap)")
+            
+            if "sql" in scans:
+                scan_tasks.append(sqlmap.test(url))
+                scan_names.append("SQL Injection (SQLMap)")
+            
+            if "web_vuln" in scans:
+                scan_tasks.append(nikto.scan(url))
+                scan_names.append("Web Vulnerabilities (Nikto)")
+            
+            if "xss" in scans:
+                scan_tasks.append(xss.test(url, []))
+                scan_names.append("XSS Testing")
+            
+            if "ssl" in scans:
+                scan_tasks.append(ssl.analyze(hostname, 443))
+                scan_names.append("SSL/TLS Check")
+            
+            if "headers" in scans:
+                scan_tasks.append(headers.analyze(url))
+                scan_names.append("Security Headers")
+            
+            if "tech" in scans:
+                scan_tasks.append(headers.detect_technologies(url))
+                scan_names.append("Technology Detection")
+            
+            # Execute all scans concurrently
+            logger.info(f"⚡ Running {len(scan_tasks)} scans in parallel...")
+            results = await asyncio.gather(*scan_tasks, return_exceptions=True)
+            
+            # Consolidate results
+            consolidated = f"# 🔒 Multi-Scan Security Audit Report\n\n"
+            consolidated += f"**Target:** {target}\n"
+            consolidated += f"**Scans Executed:** {len(scan_tasks)}\n"
+            consolidated += f"**Timestamp:** {asyncio.get_event_loop().time()}\n\n"
+            consolidated += "---\n\n"
+            
+            for i, (scan_name, scan_result) in enumerate(zip(scan_names, results)):
+                consolidated += f"## {i+1}. {scan_name}\n\n"
+                
+                if isinstance(scan_result, Exception):
+                    consolidated += f"❌ **Error:** {str(scan_result)}\n\n"
+                else:
+                    consolidated += f"{scan_result}\n\n"
+                
+                consolidated += "---\n\n"
+            
+            consolidated += f"\n✅ **Multi-scan completed!** {len([r for r in results if not isinstance(r, Exception)])}/{len(results)} scans successful.\n"
+            
+            result = consolidated
         
         else:
             result = f"❌ Unknown tool: {name}"
