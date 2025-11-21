@@ -52,89 +52,141 @@ class MultiScanRequest(BaseModel):
     ports: Optional[str] = "80,443,8080,3000,8000"
 
 async def call_mcp_tool(tool_name: str, arguments: dict) -> dict:
-    """Call MCP stdio server and return result"""
+    """Call MCP tools directly without subprocess to avoid ClosedResourceError"""
     try:
-        # Prepare JSON-RPC messages
-        init_msg = {
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2024-11-05",
-                "capabilities": {},
-                "clientInfo": {"name": "http-wrapper", "version": "1.0"}
-            }
-        }
+        # Import tools directly
+        from src.tools.nmap_scanner import NmapScanner
+        from src.tools.sqlmap_tool import SQLMapTool
+        from src.tools.nikto_scanner import NiktoScanner
+        from src.tools.xss_tester import XSSTester
+        from src.tools.subdomain_enum import SubdomainEnumerator
+        from src.tools.ssl_checker import SSLChecker
+        from src.tools.header_analyzer import HeaderAnalyzer
+        from src.utils.validator import TargetValidator
         
-        call_msg = {
-            "jsonrpc": "2.0",
-            "id": 2,
-            "method": "tools/call",
-            "params": {
-                "name": tool_name,
-                "arguments": arguments
-            }
-        }
+        # Initialize tools
+        nmap = NmapScanner()
+        sqlmap = SQLMapTool()
+        nikto = NiktoScanner()
+        xss = XSSTester()
+        subdomain = SubdomainEnumerator()
+        ssl = SSLChecker()
+        headers = HeaderAnalyzer()
+        validator = TargetValidator()
         
-        # Combine messages
-        input_data = json.dumps(init_msg) + "\n" + json.dumps(call_msg) + "\n"
-        
-        # Call MCP server
-        process = await asyncio.create_subprocess_exec(
-            "python", "-m", "src.stdio_server",
-            stdin=asyncio.subprocess.PIPE,
-            stdout=asyncio.subprocess.PIPE,
-            stderr=asyncio.subprocess.PIPE
-        )
-        
-        stdout, stderr = await process.communicate(input=input_data.encode())
-        
-        if process.returncode != 0:
+        # Call appropriate tool
+        result = None
+        if tool_name == "scan_ports":
+            result = await nmap.scan(arguments["target"], arguments.get("ports", "1-1000"))
+        elif tool_name == "test_sql_injection":
+            result = await sqlmap.test(arguments["url"])
+        elif tool_name == "scan_web_vulnerabilities":
+            result = await nikto.scan(arguments["url"])
+        elif tool_name == "test_xss":
+            result = await xss.test(arguments["url"], arguments.get("payloads"))
+        elif tool_name == "enumerate_subdomains":
+            result = await subdomain.enumerate(arguments["domain"], arguments.get("wordlist"))
+        elif tool_name == "check_ssl":
+            result = await ssl.check(arguments["host"], arguments.get("port", 443))
+        elif tool_name == "check_security_headers":
+            result = await headers.analyze(arguments["url"])
+        elif tool_name == "detect_technologies":
+            # Simple tech detection
+            import re
+            import aiohttp
+            async with aiohttp.ClientSession() as session:
+                async with session.get(arguments["url"]) as resp:
+                    html = await resp.text()
+                    tech_report = "# 🔧 Technology Detection Results\n\n"
+                    tech_report += f"**Target:** {arguments['url']}\n\n"
+                    
+                    # Detect common technologies
+                    techs = []
+                    if 'wp-content' in html or 'wordpress' in html.lower():
+                        techs.append("WordPress")
+                    if 'react' in html.lower() or '__NEXT_DATA__' in html:
+                        techs.append("React/Next.js")
+                    if 'ng-' in html or 'angular' in html.lower():
+                        techs.append("Angular")
+                    if 'vue' in html.lower():
+                        techs.append("Vue.js")
+                    
+                    tech_report += "**Detected Technologies:**\n"
+                    for tech in techs if techs else ["Unknown"]:
+                        tech_report += f"- {tech}\n"
+                    
+                    result = tech_report
+        elif tool_name == "multi_scan":
+            # Multi-scan implementation
+            target = arguments["target"]
+            scans = arguments.get("scans", ["ports", "ssl", "headers", "tech"])
+            ports = arguments.get("ports", "80,443,8080,3000,8000")
+            
+            # Normalize target
+            if not target.startswith("http"):
+                url = f"https://{target}"
+                hostname = target
+            else:
+                url = target
+                hostname = target.replace("https://", "").replace("http://", "").split("/")[0]
+            
+            # Run scans concurrently
+            scan_tasks = []
+            scan_names = []
+            
+            if "ports" in scans:
+                scan_tasks.append(nmap.scan(hostname, ports))
+                scan_names.append("Port Scan")
+            if "sql" in scans:
+                scan_tasks.append(sqlmap.test(url))
+                scan_names.append("SQL Injection Test")
+            if "web_vuln" in scans:
+                scan_tasks.append(nikto.scan(url))
+                scan_names.append("Web Vulnerabilities")
+            if "xss" in scans:
+                scan_tasks.append(xss.test(url))
+                scan_names.append("XSS Test")
+            if "ssl" in scans:
+                scan_tasks.append(ssl.check(hostname, 443))
+                scan_names.append("SSL Check")
+            if "headers" in scans:
+                scan_tasks.append(headers.analyze(url))
+                scan_names.append("Security Headers")
+            
+            # Execute all scans
+            results = await asyncio.gather(*scan_tasks, return_exceptions=True)
+            
+            # Consolidate results
+            consolidated = f"# 🔒 Multi-Scan Security Audit Report\n\n"
+            consolidated += f"**Target:** {target}\n"
+            consolidated += f"**Scans Executed:** {len(scan_tasks)}/{len(scans)}\n"
+            consolidated += f"**Timestamp:** {asyncio.get_event_loop().time()}\n\n"
+            consolidated += "---\n\n"
+            
+            for scan_name, scan_result in zip(scan_names, results):
+                consolidated += f"## {scan_name}\n\n"
+                if isinstance(scan_result, Exception):
+                    consolidated += f"❌ **Error:** {str(scan_result)}\n\n"
+                else:
+                    consolidated += f"{scan_result}\n\n"
+                consolidated += "---\n\n"
+            
+            result = consolidated
+        else:
             return {
                 "success": False,
-                "error": f"MCP server error: {stderr.decode()}"
+                "error": f"Unknown tool: {tool_name}"
             }
-        
-        # Parse response (skip logs, get last JSON line)
-        lines = stdout.decode().strip().split('\n')
-        result_line = None
-        for line in reversed(lines):
-            if line.strip().startswith('{"jsonrpc"'):
-                result_line = line
-                break
-        
-        if not result_line:
-            return {
-                "success": False,
-                "error": "No valid JSON-RPC response found"
-            }
-        
-        response = json.loads(result_line)
-        
-        if "error" in response:
-            return {
-                "success": False,
-                "error": response["error"]
-            }
-        
-        # Extract result content
-        if "result" in response and "content" in response["result"]:
-            content = response["result"]["content"]
-            if isinstance(content, list) and len(content) > 0:
-                return {
-                    "success": True,
-                    "result": content[0].get("text", str(content))
-                }
         
         return {
             "success": True,
-            "result": response.get("result", response)
+            "result": result
         }
         
     except Exception as e:
         return {
             "success": False,
-            "error": str(e)
+            "error": f"Tool execution error: {str(e)}"
         }
 
 @app.get("/")
