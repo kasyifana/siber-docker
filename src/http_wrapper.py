@@ -87,7 +87,7 @@ async def call_mcp_tool(tool_name: str, arguments: dict) -> dict:
         elif tool_name == "enumerate_subdomains":
             result = await subdomain.enumerate(arguments["domain"], arguments.get("wordlist"))
         elif tool_name == "check_ssl":
-            result = await ssl.check(arguments["host"], arguments.get("port", 443))
+            result = await ssl.analyze(arguments["host"], arguments.get("port", 443))
         elif tool_name == "check_security_headers":
             result = await headers.analyze(arguments["url"])
         elif tool_name == "detect_technologies":
@@ -147,7 +147,7 @@ async def call_mcp_tool(tool_name: str, arguments: dict) -> dict:
                 scan_tasks.append(xss.test(url))
                 scan_names.append("XSS Test")
             if "ssl" in scans:
-                scan_tasks.append(ssl.check(hostname, 443))
+                scan_tasks.append(ssl.analyze(hostname, 443))
                 scan_names.append("SSL Check")
             if "headers" in scans:
                 scan_tasks.append(headers.analyze(url))
