@@ -341,5 +341,156 @@ async def generic_tool_call(req: ToolCallRequest):
         raise HTTPException(status_code=500, detail=result.get("error"))
     return result
 
+@app.post("/scan/full-json")
+async def full_scan_json(req: MultiScanRequest):
+    """
+    Full scan with JSON-friendly output (no markdown)
+    Perfect for frontend parsing - returns structured JSON
+    """
+    from src.tools.nmap_scanner import NmapScanner
+    from src.tools.ssl_checker import SSLChecker
+    from src.tools.header_analyzer import HeaderAnalyzer
+    from src.tools.cdn_bypass_scanner import CDNBypassScanner
+    
+    target = req.target
+    url = f"https://{target}" if not target.startswith("http") else target
+    
+    results = {
+        "target": target,
+        "timestamp": None,
+        "scans_completed": 0,
+        "scans_failed": 0,
+        "total_vulnerabilities": 0,
+        "severity_breakdown": {
+            "critical": 0,
+            "high": 0,
+            "medium": 0,
+            "low": 0
+        },
+        "scan_results": {}
+    }
+    
+    # Port Scan
+    if "ports" in req.scans:
+        try:
+            nmap = NmapScanner()
+            port_result = await nmap.scan(target, req.ports)
+            results["scan_results"]["ports"] = {
+                "status": "completed",
+                "open_ports_count": len(port_result.get("open_ports", [])),
+                "open_ports": port_result.get("open_ports", []),
+                "vulnerabilities": []
+            }
+            results["scans_completed"] += 1
+        except Exception as e:
+            results["scan_results"]["ports"] = {"status": "failed", "error": str(e)}
+            results["scans_failed"] += 1
+    
+    # SSL Check
+    if "ssl" in req.scans:
+        try:
+            ssl = SSLChecker()
+            hostname = target.replace("https://", "").replace("http://", "").split("/")[0]
+            ssl_result = await ssl.analyze(hostname, 443)
+            ssl_issues = ssl_result.get("issues", [])
+            results["scan_results"]["ssl"] = {
+                "status": "completed",
+                "grade": ssl_result.get("grade", "F"),
+                "issues_count": len(ssl_issues),
+                "issues": ssl_issues,
+                "certificate_valid": not ssl_result.get("certificate", {}).get("expired", True)
+            }
+            results["scans_completed"] += 1
+            # Count vulnerabilities
+            for issue in ssl_issues:
+                if "weak" in issue.lower() or "insecure" in issue.lower():
+                    results["severity_breakdown"]["high"] += 1
+                    results["total_vulnerabilities"] += 1
+        except Exception as e:
+            results["scan_results"]["ssl"] = {"status": "failed", "error": str(e)}
+            results["scans_failed"] += 1
+    
+    # Security Headers
+    if "headers" in req.scans:
+        try:
+            headers = HeaderAnalyzer()
+            header_result = await headers.analyze(url)
+            missing_headers = []
+            high_sev = 0
+            medium_sev = 0
+            low_sev = 0
+            
+            for header, info in header_result.get("headers", {}).items():
+                if not info.get("present", True):
+                    severity = info.get("severity", "low")
+                    missing_headers.append({
+                        "header": header,
+                        "severity": severity,
+                        "impact": info.get("impact", "")
+                    })
+                    if severity == "high":
+                        high_sev += 1
+                    elif severity == "medium":
+                        medium_sev += 1
+                    else:
+                        low_sev += 1
+            
+            results["scan_results"]["headers"] = {
+                "status": "completed",
+                "score": header_result.get("score", 0),
+                "missing_headers_count": len(missing_headers),
+                "missing_headers": missing_headers,
+                "issues": header_result.get("issues", []),
+                "total_issues": len(header_result.get("issues", []))
+            }
+            results["scans_completed"] += 1
+            results["total_vulnerabilities"] += len(missing_headers)
+            results["severity_breakdown"]["high"] += high_sev
+            results["severity_breakdown"]["medium"] += medium_sev
+            results["severity_breakdown"]["low"] += low_sev
+        except Exception as e:
+            results["scan_results"]["headers"] = {"status": "failed", "error": str(e)}
+            results["scans_failed"] += 1
+    
+    # CDN Bypass
+    if "cdn" in req.scans or "cdn-bypass" in req.scans:
+        try:
+            cdn = CDNBypassScanner()
+            cdn_result = await cdn.scan(url)
+            real_vulns = cdn_result.get("real_vulnerabilities", [])
+            results["scan_results"]["cdn_bypass"] = {
+                "status": "completed",
+                "cdn_detected": cdn_result.get("cdn_detected", False),
+                "cdn_provider": cdn_result.get("cdn_provider", "NONE"),
+                "bypass_possible": cdn_result.get("bypass_possible", False),
+                "real_vulnerabilities_count": len(real_vulns),
+                "real_vulnerabilities": real_vulns,
+                "security_score": cdn_result.get("security_analysis", {}).get("security_score", 0)
+            }
+            results["scans_completed"] += 1
+            results["total_vulnerabilities"] += len(real_vulns)
+            for vuln in real_vulns:
+                sev = vuln.get("severity", "LOW").lower()
+                if sev == "high":
+                    results["severity_breakdown"]["high"] += 1
+                elif sev == "medium":
+                    results["severity_breakdown"]["medium"] += 1
+                else:
+                    results["severity_breakdown"]["low"] += 1
+        except Exception as e:
+            results["scan_results"]["cdn_bypass"] = {"status": "failed", "error": str(e)}
+            results["scans_failed"] += 1
+    
+    # Summary
+    from datetime import datetime
+    results["timestamp"] = datetime.now().isoformat()
+    results["overall_status"] = "completed" if results["scans_failed"] == 0 else "partial"
+    results["security_grade"] = "F" if results["total_vulnerabilities"] > 10 else ("D" if results["total_vulnerabilities"] > 5 else "C")
+    
+    return {
+        "success": True,
+        "result": results
+    }
+
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=3000)
