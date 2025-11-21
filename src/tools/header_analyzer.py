@@ -6,6 +6,7 @@ from loguru import logger
 
 class HeaderAnalyzer:
     def __init__(self):
+        # EXPANDED security headers check - more comprehensive
         self.required_headers = {
             'Strict-Transport-Security': {
                 'severity': 'high',
@@ -13,7 +14,7 @@ class HeaderAnalyzer:
             },
             'Content-Security-Policy': {
                 'severity': 'high',
-                'impact': 'XSS attacks, data injection'
+                'impact': 'XSS attacks, data injection, code execution'
             },
             'X-Frame-Options': {
                 'severity': 'medium',
@@ -30,6 +31,30 @@ class HeaderAnalyzer:
             'Permissions-Policy': {
                 'severity': 'low',
                 'impact': 'Unwanted feature access'
+            },
+            'X-XSS-Protection': {
+                'severity': 'medium',
+                'impact': 'XSS attacks (legacy browsers)'
+            },
+            'Cross-Origin-Opener-Policy': {
+                'severity': 'medium',
+                'impact': 'Cross-origin attacks'
+            },
+            'Cross-Origin-Resource-Policy': {
+                'severity': 'medium',
+                'impact': 'Resource theft attacks'
+            },
+            'Cross-Origin-Embedder-Policy': {
+                'severity': 'low',
+                'impact': 'Spectre attacks'
+            },
+            'Expect-CT': {
+                'severity': 'low',
+                'impact': 'Certificate transparency issues'
+            },
+            'Feature-Policy': {
+                'severity': 'low',
+                'impact': 'Browser feature abuse'
             }
         }
         logger.info("Header analyzer initialized")
@@ -108,12 +133,45 @@ class HeaderAnalyzer:
                             }
                             results['issues'].append(f"Missing {header}")
                     
-                    # Check for information disclosure
+                    # Check for information disclosure - MORE AGGRESSIVE
                     if 'Server' in headers:
                         results['issues'].append(f"Server version exposed: {headers['Server']}")
                     
                     if 'X-Powered-By' in headers:
                         results['issues'].append(f"Technology exposed: {headers['X-Powered-By']}")
+                    
+                    if 'X-AspNet-Version' in headers:
+                        results['issues'].append(f"ASP.NET version exposed: {headers['X-AspNet-Version']}")
+                    
+                    if 'X-AspNetMvc-Version' in headers:
+                        results['issues'].append(f"ASP.NET MVC version exposed: {headers['X-AspNetMvc-Version']}")
+                    
+                    # Check for weak/deprecated headers
+                    if 'X-XSS-Protection' in headers and '0' in headers['X-XSS-Protection']:
+                        results['issues'].append("XSS Protection is DISABLED")
+                    
+                    # Check for permissive CORS
+                    if 'Access-Control-Allow-Origin' in headers:
+                        cors = headers['Access-Control-Allow-Origin']
+                        if cors == '*':
+                            results['issues'].append("CRITICAL: CORS allows ALL origins (*)")
+                        results['issues'].append(f"CORS enabled for: {cors}")
+                    
+                    # Check for cache control issues
+                    if 'Cache-Control' not in headers:
+                        results['issues'].append("Missing Cache-Control header")
+                    elif 'no-store' not in headers.get('Cache-Control', ''):
+                        results['issues'].append("Sensitive data might be cached")
+                    
+                    # Check for cookie security
+                    if 'Set-Cookie' in headers:
+                        cookie = headers['Set-Cookie']
+                        if 'Secure' not in cookie:
+                            results['issues'].append("Cookie missing Secure flag")
+                        if 'HttpOnly' not in cookie:
+                            results['issues'].append("Cookie missing HttpOnly flag")
+                        if 'SameSite' not in cookie:
+                            results['issues'].append("Cookie missing SameSite flag")
                     
                     logger.info(f"Header analysis completed for {url}: Score {results['score']}/100")
                     return results

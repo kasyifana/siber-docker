@@ -29,17 +29,25 @@ class SQLMapTool:
             Test results
         """
         try:
-            # Build SQLMap command
+            # Build AGGRESSIVE SQLMap command
             cmd = [
                 self.sqlmap_path,
                 '-u', url,
                 '--batch',  # Non-interactive
                 '--random-agent',
-                '--level=1',
-                '--risk=1',
+                '--level=5',  # MAXIMUM level (1-5) - test all parameters
+                '--risk=3',   # MAXIMUM risk (1-3) - use potentially dangerous tests
                 '--output-dir=/tmp/sqlmap',
                 '--flush-session',
-                '--fresh-queries'
+                '--fresh-queries',
+                '--threads=5',  # Faster scanning
+                '--tamper=space2comment',  # Use tamper scripts
+                '--technique=BEUSTQ',  # All SQL injection techniques
+                '--time-sec=5',  # Time-based detection
+                '--union-cols=5-10',  # UNION attack columns
+                '--crawl=2',  # Crawl website
+                '--forms',  # Test forms automatically
+                '--answers="follow=Y"',  # Follow redirects
             ]
             
             if parameters:

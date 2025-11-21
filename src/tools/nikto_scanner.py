@@ -27,7 +27,7 @@ class NiktoScanner:
             Scan results
         """
         try:
-            # Build Nikto command
+            # Build AGGRESSIVE Nikto command
             cmd = [
                 self.nikto_path,
                 '-h', url,
@@ -35,18 +35,22 @@ class NiktoScanner:
                 '-nossl',  # Don't check SSL (we have separate tool)
             ]
             
-            # Add tuning based on scan depth
+            # Add tuning based on scan depth - MORE AGGRESSIVE
             if scan_depth == "quick":
-                cmd.extend(['-Tuning', '1,2,3'])
+                cmd.extend(['-Tuning', '1,2,3,4,5'])
             elif scan_depth == "thorough":
-                cmd.extend(['-Tuning', 'x'])
-            else:  # standard
-                cmd.extend(['-Tuning', '1,2,3,4,5,6'])
+                cmd.extend(['-Tuning', 'x'])  # ALL TESTS
+            else:  # standard - make it more aggressive
+                cmd.extend(['-Tuning', '1,2,3,4,5,6,7,8,9,b'])
             
-            # Add additional options
+            # Add additional AGGRESSIVE options
             cmd.extend([
-                '-timeout', '10',
-                '-maxtime', '300',  # 5 minutes max
+                '-timeout', '20',  # Longer timeout
+                '-maxtime', '600',  # 10 minutes max for thorough scan
+                '-Cgidirs', 'all',  # Scan all CGI directories
+                '-evasion', '1',  # Use evasion technique 1
+                '-mutate', '1',  # Mutate test cases
+                '-Display', 'V',  # Verbose output
             ])
             
             logger.info(f"Running Nikto scan on {url} with depth: {scan_depth}")

@@ -33,17 +33,18 @@ class NmapScanner:
         try:
             logger.info(f"Starting {scan_type} scan on {target}")
             
-            # Build nmap command based on scan type
+            # Build AGGRESSIVE nmap command based on scan type
             if scan_type == "quick":
-                args = ["-T4", "-F", "--open"]
+                args = ["-T5", "-F", "-sV", "--version-intensity=5", "--open"]
             elif scan_type == "full":
-                args = ["-T4", "-p-", "--open"]
+                args = ["-T4", "-p-", "-sV", "-sC", "--script=vuln", "--open"]
             elif scan_type == "stealth":
-                args = ["-sS", "-T2", f"-p{ports}", "--open"]
+                args = ["-sS", "-T2", f"-p{ports}", "-sV", "--open"]
             elif scan_type == "version":
-                args = ["-sV", f"-p{ports}", "--open"]
+                args = ["-sV", "--version-all", "-sC", f"-p{ports}", "--open", "--script=vuln,exploit"]
             else:
-                args = ["-T4", f"-p{ports}", "--open"]
+                # Default: AGGRESSIVE scan with service detection + vulnerability scanning
+                args = ["-T4", f"-p{ports}", "-sV", "-sC", "--version-intensity=7", "--script=vuln,auth,exploit", "--open"]
             
             # Execute nmap
             results = await self._execute_nmap(target, args)
