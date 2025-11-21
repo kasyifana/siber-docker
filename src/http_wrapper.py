@@ -62,6 +62,7 @@ async def call_mcp_tool(tool_name: str, arguments: dict) -> dict:
         from src.tools.subdomain_enum import SubdomainEnumerator
         from src.tools.ssl_checker import SSLChecker
         from src.tools.header_analyzer import HeaderAnalyzer
+        from src.tools.cdn_bypass_scanner import CDNBypassScanner
         from src.utils.validator import TargetValidator
         
         # Initialize tools
@@ -72,6 +73,7 @@ async def call_mcp_tool(tool_name: str, arguments: dict) -> dict:
         subdomain = SubdomainEnumerator()
         ssl = SSLChecker()
         headers = HeaderAnalyzer()
+        cdn_bypass = CDNBypassScanner()
         validator = TargetValidator()
         
         # Call appropriate tool
@@ -90,6 +92,8 @@ async def call_mcp_tool(tool_name: str, arguments: dict) -> dict:
             result = await ssl.analyze(arguments["host"], arguments.get("port", 443))
         elif tool_name == "check_security_headers":
             result = await headers.analyze(arguments["url"])
+        elif tool_name == "cdn_bypass_scan":
+            result = await cdn_bypass.scan(arguments["url"])
         elif tool_name == "detect_technologies":
             # Simple tech detection
             import re
@@ -305,6 +309,14 @@ async def check_headers(req: CheckHeadersRequest):
 async def detect_tech(req: DetectTechRequest):
     """Detect technologies"""
     result = await call_mcp_tool("detect_technologies", {"url": req.url})
+    if not result.get("success"):
+        raise HTTPException(status_code=500, detail=result.get("error"))
+    return result
+
+@app.post("/scan/cdn-bypass")
+async def cdn_bypass_scan(req: CheckHeadersRequest):
+    """Scan origin server bypassing CDN - detects REAL vulnerabilities"""
+    result = await call_mcp_tool("cdn_bypass_scan", {"url": req.url})
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error"))
     return result
