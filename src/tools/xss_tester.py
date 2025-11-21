@@ -78,7 +78,7 @@ class XSSTester:
     async def test(
         self,
         url: str,
-        parameters: List[str],
+        parameters: List[str] = None,
         payload_type: str = "all"
     ) -> Dict:
         """
@@ -86,7 +86,7 @@ class XSSTester:
         
         Args:
             url: Target URL
-            parameters: Parameters to test
+            parameters: Parameters to test (auto-detect if None)
             payload_type: Type of payloads to use
         
         Returns:
@@ -95,6 +95,17 @@ class XSSTester:
         vulnerabilities = []
         
         try:
+            # Auto-detect parameters if not provided
+            if parameters is None:
+                from urllib.parse import urlparse, parse_qs
+                parsed = urlparse(url)
+                query_params = parse_qs(parsed.query)
+                parameters = list(query_params.keys())
+                
+                # If no parameters in URL, test common ones
+                if not parameters:
+                    parameters = ['q', 'search', 'query', 'id', 'name', 'page', 'category']
+            
             # Get payloads based on type
             if payload_type == "all":
                 test_payloads = (
@@ -104,6 +115,8 @@ class XSSTester:
                 )
             else:
                 test_payloads = self.payloads.get(payload_type, [])
+            
+            logger.info(f"Testing XSS on {url} with {len(parameters)} parameters and {len(test_payloads)} payloads")
             
             async with aiohttp.ClientSession() as session:
                 for param in parameters:
