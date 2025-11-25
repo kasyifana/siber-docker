@@ -35,6 +35,7 @@ class TestXSSRequest(BaseModel):
 class EnumerateSubdomainsRequest(BaseModel):
     domain: str
     wordlist: Optional[str] = None
+    method: Optional[str] = "all"
 
 class CheckSSLRequest(BaseModel):
     host: str
@@ -87,7 +88,11 @@ async def call_mcp_tool(tool_name: str, arguments: dict) -> dict:
         elif tool_name == "test_xss":
             result = await xss.test(arguments["url"], arguments.get("payloads"))
         elif tool_name == "enumerate_subdomains":
-            result = await subdomain.enumerate(arguments["domain"], arguments.get("wordlist"))
+            # Fix: Pass method correctly, ignore wordlist as it's not supported by the tool instance method
+            result = await subdomain.enumerate(
+                domain=arguments["domain"], 
+                method=arguments.get("method", "all")
+            )
         elif tool_name == "check_ssl":
             result = await ssl.analyze(arguments["host"], arguments.get("port", 443))
         elif tool_name == "check_security_headers":
@@ -281,6 +286,8 @@ async def enumerate_subdomains(req: EnumerateSubdomainsRequest):
     args = {"domain": req.domain}
     if req.wordlist:
         args["wordlist"] = req.wordlist
+    if req.method:
+        args["method"] = req.method
     result = await call_mcp_tool("enumerate_subdomains", args)
     if not result.get("success"):
         raise HTTPException(status_code=500, detail=result.get("error"))

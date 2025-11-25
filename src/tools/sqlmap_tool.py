@@ -65,7 +65,7 @@ class SQLMapTool:
             )
             
             stdout, stderr = await process.communicate()
-            output = stdout.decode()
+            output = stdout.decode() + "\n" + stderr.decode()
             
             # Parse results
             results = self._parse_output(output, url)
@@ -127,7 +127,7 @@ class SQLMapTool:
             'url': url,
             'vulnerable': vulnerable,
             'vulnerabilities': vulnerabilities,
-            'raw_output': output[:500]  # First 500 chars for reference
+            'raw_output': output[:5000]  # First 5000 chars for reference
         }
     
     def _detect_database(self, output: str) -> str:

@@ -81,6 +81,13 @@ class SubdomainEnumerator:
         Returns:
             Enumeration results
         """
+        # Clean domain input
+        domain = domain.lower()
+        if domain.startswith('http://'):
+            domain = domain[7:]
+        elif domain.startswith('https://'):
+            domain = domain[8:]
+            
         subdomains = set()
         
         try:
