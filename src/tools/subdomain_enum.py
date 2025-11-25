@@ -13,15 +13,58 @@ class SubdomainEnumerator:
     
     def _load_wordlist(self) -> List[str]:
         """Load subdomain wordlist"""
-        # Common subdomains
-        return [
-            'www', 'mail', 'ftp', 'localhost', 'webmail', 'smtp',
-            'pop', 'ns1', 'webdisk', 'ns2', 'cpanel', 'whm',
-            'autodiscover', 'autoconfig', 'mobile', 'api', 'dev',
-            'test', 'staging', 'admin', 'portal', 'vpn', 'cdn',
-            'blog', 'shop', 'store', 'app', 'static', 'media',
-            'assets', 'images', 'downloads', 'docs', 'support'
-        ]
+        wordlist = []
+        
+        # Try to load from file
+        try:
+            # Check common locations
+            paths = [
+                'data/wordlists/subdomains.txt',
+                '../data/wordlists/subdomains.txt',
+                './subdomains.txt'
+            ]
+            
+            for path in paths:
+                try:
+                    with open(path, 'r') as f:
+                        wordlist = [line.strip() for line in f if line.strip()]
+                    if wordlist:
+                        logger.info(f"Loaded {len(wordlist)} subdomains from {path}")
+                        break
+                except FileNotFoundError:
+                    continue
+        except Exception as e:
+            logger.warning(f"Error loading wordlist file: {e}")
+
+        if not wordlist:
+            # Expanded common subdomains list
+            return [
+                'www', 'mail', 'ftp', 'localhost', 'webmail', 'smtp',
+                'pop', 'ns1', 'webdisk', 'ns2', 'cpanel', 'whm',
+                'autodiscover', 'autoconfig', 'mobile', 'api', 'dev',
+                'test', 'staging', 'admin', 'portal', 'vpn', 'cdn',
+                'blog', 'shop', 'store', 'app', 'static', 'media',
+                'assets', 'images', 'downloads', 'docs', 'support',
+                'secure', 'email', 'beta', 'server', 'remote', 'host',
+                'dns', 'cloud', 'exchange', 'chat', 'wiki', 'help',
+                'forum', 'news', 'status', 'calendar', 'files', 'git',
+                'jenkins', 'jira', 'gitlab', 'grafana', 'prometheus',
+                'kibana', 'elastic', 'mysql', 'db', 'database', 'postgres',
+                'redis', 'mongo', 'stage', 'prod', 'production', 'uat',
+                'demo', 'preprod', 'manage', 'manager', 'management',
+                'account', 'accounts', 'login', 'signin', 'auth', 'sso',
+                'oauth', 'payment', 'billing', 'pay', 'checkout', 'cart',
+                'api-docs', 'swagger', 'v1', 'v2', 'graphql', 'rest',
+                'ws', 'wss', 'socket', 'stream', 'video', 'audio',
+                'public', 'private', 'internal', 'intranet', 'extranet',
+                'staff', 'hr', 'careers', 'jobs', 'marketing', 'sales',
+                'monitor', 'monitoring', 'log', 'logs', 'audit',
+                'security', 'firewall', 'waf', 'ids', 'ips', 'siem',
+                'root', 'administrator', 'user', 'client', 'customer',
+                'partner', 'vendor', 'dashboard', 'panel', 'console'
+            ]
+        
+        return wordlist
     
     async def enumerate(
         self,
@@ -79,15 +122,28 @@ class SubdomainEnumerator:
         
         try:
             # Query different record types
-            record_types = ['A', 'AAAA', 'CNAME', 'MX', 'NS', 'TXT']
+            record_types = ['A', 'AAAA', 'CNAME', 'MX', 'NS', 'TXT', 'SOA']
             
             for record_type in record_types:
                 try:
                     answers = dns.resolver.resolve(domain, record_type)
                     for rdata in answers:
+                        target = None
+                        # Handle different record types
                         if hasattr(rdata, 'target'):
-                            subdomain = str(rdata.target).rstrip('.')
-                            if domain in subdomain:
+                            target = str(rdata.target)
+                        elif hasattr(rdata, 'exchange'):
+                            target = str(rdata.exchange)
+                        elif hasattr(rdata, 'mname'):
+                            target = str(rdata.mname)
+                        elif hasattr(rdata, 'to_text'):
+                            target = rdata.to_text()
+                        
+                        if target:
+                            # Clean up the domain name
+                            subdomain = target.rstrip('.')
+                            # Only include if it's a subdomain of our target
+                            if domain in subdomain and subdomain != domain:
                                 subdomains.append(subdomain)
                 except:
                     pass
@@ -95,7 +151,7 @@ class SubdomainEnumerator:
         except Exception as e:
             logger.debug(f"DNS enumeration error: {str(e)}")
         
-        return subdomains
+        return list(set(subdomains))
     
     async def _enumerate_certificate(self, domain: str) -> List[str]:
         """Enumerate via SSL certificate (crt.sh)"""
